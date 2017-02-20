@@ -1,0 +1,24 @@
+# Make a new git repo with just the developer notes in its history
+# http://blog.ostermiller.org/git-remove-from-history
+
+cd ~/src
+git clone switch switch-devnotes
+cd switch-devnotes
+git remote remove origin
+
+git filter-branch --tag-name-filter cat --index-filter 'git rm -r --cached --ignore-unmatch AUTHORS INSTALL LICENSE LICENSE.BOILERPLATE README doc examples requirements.txt  run_tests.py setup.py switch_mod tests how_to_collaborate.txt .gitignore model demo.py financials.py fuels.py generators.py load_zones.py timescales.py utilities.py test_dat switch_demo.py switch_toy_ReferenceModel.py run_tests.sh' --prune-empty -f -- --all
+
+rm -rf .git/refs/original/
+git reflog expire --expire=now --all
+git gc --aggressive --prune=now
+
+mkdir pyomo_exploration
+git mv sandbox_dev/*py sandbox_dev/*dat pyomo_exploration/
+git mv sandbox_dev/dev_notes/ josiah_notes
+rm -rf sandbox_dev/
+
+git add .
+git commit -m 'Reorganizing files into a stand-alone repository'
+
+git remote add origin git@github.com:josiahjohnston/switch-devnotes.git
+git push -u origin master
