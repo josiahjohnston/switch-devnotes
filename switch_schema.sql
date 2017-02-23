@@ -20,24 +20,18 @@ CREATE TABLE raw_timeseries
 (
   raw_timeseries_id smallint PRIMARY KEY,
   hours_per_tp double precision NOT NULL,
-  num_timepoints INT NOT NULL,
-  first_timepoint_utc timestamp without time zone,
-  last_timepoint_utc timestamp without time zone,
-  start_year smallint,
-  end_year smallint,
+  timestamp_utc timestamp without time zone[],
   description text
 );
 COMMENT ON TABLE raw_timeseries
   IS 'A sequence of future timepoints for which you have projections of operational data: loads, renewable output, hydro availability, ... each of those timeseries will be defined over this sequence of timepoints. These datasets can be reused across different studies that may have different specifications of study periods (ex. 1-year periods for short-term studies, 5-year periods for long-term studies). Each raw_timeseries will typically be one year long, but they can technically be of any length.';
-
-CREATE TABLE raw_timepoint
-(
-  raw_timepoint_id int PRIMARY KEY,
-  raw_timeseries_id smallint REFERENCES raw_timeseries,
-  timestamp_utc timestamp without time zone,
-  UNIQUE (raw_timeseries_id, timestamp_utc),
-  UNIQUE (raw_timepoint_id, timestamp_utc)
-);
+COMMENT ON COLUMN raw_timeseries.timestamp_utc
+  IS 'A vector of timepoints in this time series.';
+-- select *, 
+--     array_length(timestamp_utc, 1) as num_timepoints, 
+--     timestamp_utc[1] as first_timepoint, 
+--     timestamp_utc[array_length(timestamp_utc, 1)] as last_timepoint 
+-- from raw_timeseries;
 
 CREATE TABLE study_timeframe
 (
@@ -92,18 +86,17 @@ CREATE TABLE sampled_timeseries
   study_timeframe_id smallint REFERENCES study_timeframe,
   time_sample_id smallint REFERENCES time_sample,
   period_id smallint REFERENCES period,
+  raw_timeseries_id smallint REFERENCES raw_timeseries,
   name character varying(30) NOT NULL,
   hours_per_tp double precision NOT NULL,
-  num_timepoints INT NOT NULL,
-  first_timepoint_utc timestamp without time zone,
-  last_timepoint_utc timestamp without time zone,
+  timestamp_utc timestamp without time zone[],
   scaling_to_period double precision NOT NULL,
   UNIQUE (study_timeframe_id, time_sample_id, sampled_timeseries_id),
   FOREIGN KEY (study_timeframe_id, time_sample_id) 
     REFERENCES time_sample (study_timeframe_id, time_sample_id)
 );
 COMMENT ON TABLE sampled_timeseries
-  IS 'A representative sampling from all available timeseries in this study timeframe. Redundant index columns are intentional to allow faster queries.';
+  IS 'A representative sampling from all available timeseries in this study timeframe. Redundant index columns are intentional to allow faster queries. Actual samples are stored in the column vector timestamp_utc. The timeseries this was drawn from is referenced in raw_timeseries_id.';
 COMMENT ON COLUMN sampled_timeseries.scaling_to_period
   IS 'The number of times conditions like this are expected to occur in the period. The sum of hours_per_tp * num_timepoints * scaling_to_period for all timeseries in a period should equal the number of hours in that period.';
 
